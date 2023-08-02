@@ -102,12 +102,16 @@ namespace jitlib
         std::size_t handle_set(Op const &op, uint8_t *buffer)
         {
             auto reg = encode_reg(op.regA);
-            uint8_t const ins[]{0x48, 0xc7, uint8_t(0xc0 | reg), op.imm, 0x00, 0x00, 0x00};
-            if (buffer != nullptr)
+            if (op.type == OpType::SetImm)
             {
-                std::copy(std::begin(ins), std::end(ins), buffer);
+                uint8_t const ins[]{0x48, 0xc7, uint8_t(0xc0 | reg), op.imm, 0x00, 0x00, 0x00};
+                if (buffer != nullptr)
+                {
+                    std::copy(std::begin(ins), std::end(ins), buffer);
+                }
+                return std::size(ins);
             }
-            return std::size(ins);
+            return 0;
         }
 
         std::size_t handle_arithmetic(Op const &op, uint8_t *buffer)
@@ -170,7 +174,8 @@ namespace jitlib
             case OpType::Store:
                 return handle_load_store(op, buffer);
 
-            case OpType::Set:
+            case OpType::SetReg:
+            case OpType::SetImm:
                 return handle_set(op, buffer);
 
             case OpType::AddReg:
@@ -187,6 +192,10 @@ namespace jitlib
 
             case OpType::Return:
                 return handle_return(op, buffer);
+
+            case OpType::Label:
+                // TODO
+                return 0;
             }
             return 0;
         }

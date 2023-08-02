@@ -1,10 +1,30 @@
 #include "lib.h"
 #include <stack>
+#include <unordered_map>
 
 namespace jitlib
 {
+    namespace
+    {
+        auto generate_lookups(Ops const &ops)
+        {
+            std::unordered_map<Label, Value> lookup;
+            for (std::size_t i = 0; i < ops.size(); i++)
+            {
+                auto &op = ops[i];
+                if (op.type == OpType::Label)
+                {
+                    lookup[op.label] = i;
+                }
+            }
+            return lookup;
+        }
+    }
+
     void run(Ops const &ops, ExecutionEnvironment &env)
     {
+        auto const lookup = generate_lookups(ops);
+
         // Add the first program counter
         std::stack<Value> pcs;
         pcs.push(env.pc);
@@ -19,12 +39,15 @@ namespace jitlib
             case OpType::Nop:
                 break;
             case OpType::Load:
-                env.regs[op.regA] = env.mem[op.addr];
+                env.regs[op.regA] = env.mem[op.imm];
                 break;
             case OpType::Store:
-                env.mem[op.addr] = env.regs[op.regA];
+                env.mem[op.imm] = env.regs[op.regA];
                 break;
-            case OpType::Set:
+            case OpType::SetReg:
+                env.regs[op.regA] = env.regs[op.regB];
+                break;
+            case OpType::SetImm:
                 env.regs[op.regA] = op.imm;
                 break;
             case OpType::AddReg:
@@ -37,19 +60,21 @@ namespace jitlib
                 env.regs[op.regA] = 1 + ~env.regs[op.regA];
                 break;
             case OpType::Jump:
-                pc += op.imm;
+                pc = lookup.at(op.label);
                 break;
             case OpType::JumpIfZero:
                 if (env.regs[op.regA] == 0)
                 {
-                    pc += op.imm;
+                    pc = lookup.at(op.label);
                 }
                 break;
             case OpType::Call:
-                pcs.push(op.imm);
+                pcs.push(lookup.at(op.label));
                 break;
             case OpType::Return:
                 pcs.pop();
+                break;
+            case OpType::Label:
                 break;
             }
         }

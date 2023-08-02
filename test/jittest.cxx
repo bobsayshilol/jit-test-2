@@ -111,10 +111,10 @@ TEST_CASE(test_basic)
 TEST_CASE(test_reg_order)
 {
     jitlib::Ops const ops{
-        jitlib::Op::make_Set(0, 1),
-        jitlib::Op::make_Set(1, 2),
-        jitlib::Op::make_Set(2, 3),
-        jitlib::Op::make_Set(3, 4),
+        jitlib::Op::make_SetImm(0, 1),
+        jitlib::Op::make_SetImm(1, 2),
+        jitlib::Op::make_SetImm(2, 3),
+        jitlib::Op::make_SetImm(3, 4),
         jitlib::Op::make_Return(),
     };
 
@@ -144,12 +144,26 @@ TEST_CASE(test_reg_input)
     CHECK_EQ(env.regs[3], 4);
 }
 
+TEST_CASE(test_set_copy)
+{
+    jitlib::Ops const ops{
+        jitlib::Op::make_SetImm(0, 2),
+        jitlib::Op::make_SetReg(1, 0),
+        jitlib::Op::make_Return(),
+    };
+
+    jitlib::ExecutionEnvironment env{};
+    RUN_OPS(ops, env);
+    CHECK_EQ(env.regs[0], 2);
+    CHECK_EQ(env.regs[1], 2);
+}
+
 TEST_CASE(test_set_all)
 {
     for (int i = 0; i <= 255; i++)
     {
         jitlib::Ops const ops{
-            jitlib::Op::make_Set(0, i),
+            jitlib::Op::make_SetImm(0, i),
             jitlib::Op::make_Return(),
         };
 
@@ -177,7 +191,7 @@ TEST_CASE(test_load_store)
 TEST_CASE(test_add)
 {
     jitlib::Ops const ops{
-        jitlib::Op::make_Set(2, 1),    // r2 = 1
+        jitlib::Op::make_SetImm(2, 1), // r2 = 1
         jitlib::Op::make_AddReg(1, 2), // r1 += r2
         jitlib::Op::make_AddImm(2, 3), // r2 += 3
         jitlib::Op::make_Return(),
@@ -207,10 +221,11 @@ TEST_CASE(test_add_all)
 TEST_CASE(test_jump)
 {
     jitlib::Ops const ops{
-        jitlib::Op::make_Set(1, 7),    // r1 = 7
-        jitlib::Op::make_Jump(1),      // jmp +1
-        jitlib::Op::make_AddImm(1, 1), // r1 += 1
-        jitlib::Op::make_AddImm(1, 2), // r1 += 2
+        jitlib::Op::make_SetImm(1, 7),  // r1 = 7
+        jitlib::Op::make_Jump("test"),  // jmp over
+        jitlib::Op::make_AddImm(1, 1),  // r1 += 1
+        jitlib::Op::make_Label("test"), //
+        jitlib::Op::make_AddImm(1, 2),  // r1 += 2
         jitlib::Op::make_Return(),
     };
 
@@ -222,13 +237,14 @@ TEST_CASE(test_jump)
 TEST_CASE(test_jump_if_zero)
 {
     jitlib::Ops const ops{
-        jitlib::Op::make_Set(0, 3),        // r0 = 3
-        jitlib::Op::make_Set(1, 3),        // r1 = 3
-        jitlib::Op::make_Negate(0),        // r0 = -r0
-        jitlib::Op::make_AddReg(0, 1),     // r0 += r1
-        jitlib::Op::make_JumpIfZero(0, 1), // r0 == 0, jmp +1
-        jitlib::Op::make_AddImm(2, 1),     // r2 += 1
-        jitlib::Op::make_AddImm(2, 2),     // r2 += 2
+        jitlib::Op::make_SetImm(0, 3),          // r0 = 3
+        jitlib::Op::make_SetImm(1, 3),          // r1 = 3
+        jitlib::Op::make_Negate(0),             // r0 = -r0
+        jitlib::Op::make_AddReg(0, 1),          // r0 += r1
+        jitlib::Op::make_JumpIfZero(0, "test"), // r0 == 0, jmp over
+        jitlib::Op::make_AddImm(2, 1),          // r2 += 1
+        jitlib::Op::make_Label("test"),         //
+        jitlib::Op::make_AddImm(2, 2),          // r2 += 2
         jitlib::Op::make_Return(),
     };
 
@@ -241,12 +257,13 @@ TEST_CASE(test_jump_if_zero)
 TEST_CASE(test_call)
 {
     jitlib::Ops const ops{
-        /*0*/ jitlib::Op::make_Call(4),      // call 4
-        /*1*/ jitlib::Op::make_AddImm(1, 5), // r1 += 5
-        /*2*/ jitlib::Op::make_Return(),
-        /*3*/ jitlib::Op::make_Nop(),
-        /*5*/ jitlib::Op::make_Set(1, 3), // r1 = 3
-        /*6*/ jitlib::Op::make_Return(),
+        jitlib::Op::make_Call("test"), // call 4
+        jitlib::Op::make_AddImm(1, 5), // r1 += 5
+        jitlib::Op::make_Return(),
+        jitlib::Op::make_Nop(),
+        jitlib::Op::make_Label("test"),
+        jitlib::Op::make_SetImm(1, 3), // r1 = 3
+        jitlib::Op::make_Return(),
     };
 
     jitlib::ExecutionEnvironment env{};
