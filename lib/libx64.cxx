@@ -218,7 +218,7 @@ namespace jitlib
         return *this;
     }
 
-    void CompiledCode::run(ExecutionEnvironment &env)
+    void CompiledCode::run(ExecutionEnvironment &env) const
     {
         // Setup registers
         NativeState state{};

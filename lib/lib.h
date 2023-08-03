@@ -103,7 +103,7 @@ namespace jitlib
         CompiledCode(CompiledCode &&);
         CompiledCode &operator=(CompiledCode &&);
 
-        void run(ExecutionEnvironment &env);
+        void run(ExecutionEnvironment &env) const;
     };
     CompiledCode compile(Ops const &ops);
 }
