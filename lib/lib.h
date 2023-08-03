@@ -15,8 +15,8 @@ namespace jitlib
     {
         Nop = 0,
         Return,
-        Load,       // reg = *addr
-        Store,      // *addr = reg
+        Load,       // regA = *regB
+        Store,      // *regA = regB
         SetReg,     // reg = reg
         SetImm,     // reg = imm
         AddReg,     // reg += reg
@@ -58,8 +58,8 @@ namespace jitlib
 
         static Op make_Return() { return {OpType::Return, 0, {}}; }
         static Op make_Nop() { return {OpType::Nop, 0, {}}; }
-        static Op make_Load(Register reg, Value addr) { return {OpType::Load, reg, {.imm = addr}}; }
-        static Op make_Store(Value addr, Register reg) { return {OpType::Store, reg, {.imm = addr}}; }
+        static Op make_Load(Register reg, Register regR) { return {OpType::Load, reg, {.regB = regR}}; }
+        static Op make_Store(Register reg, Register regR) { return {OpType::Store, reg, {.regB = regR}}; }
         static Op make_SetReg(Register reg, Register regR) { return {OpType::SetReg, reg, {.regB = regR}}; }
         static Op make_SetImm(Register reg, Value imm) { return {OpType::SetImm, reg, {.imm = imm}}; }
         static Op make_AddReg(Register regL, Register regR) { return {OpType::AddReg, regL, {.regB = regR}}; }

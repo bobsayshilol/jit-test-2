@@ -176,16 +176,19 @@ TEST_CASE(test_set_all)
 TEST_CASE(test_load_store)
 {
     jitlib::Ops const ops{
-        jitlib::Op::make_Load(2, 0),  // r2 = m[0]
-        jitlib::Op::make_Store(1, 2), // m[1] = r2
+        jitlib::Op::make_Load(2, 0),  // r2 = m[r0]
+        jitlib::Op::make_Store(1, 3), // m[r1] = r3
         jitlib::Op::make_Return(),
     };
 
     jitlib::ExecutionEnvironment env{};
-    env.mem[0] = 4;
+    env.regs[0] = 4;
+    env.regs[1] = 10;
+    env.regs[3] = 9;
+    env.mem[4] = 7;
     RUN_OPS(ops, env);
-    CHECK_EQ(env.regs[2], 4);
-    CHECK_EQ(env.mem[1], 4);
+    CHECK_EQ(env.regs[2], 7);
+    CHECK_EQ(env.mem[10], 9);
 }
 
 TEST_CASE(test_add)

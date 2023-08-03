@@ -39,10 +39,10 @@ namespace jitlib
             case OpType::Nop:
                 break;
             case OpType::Load:
-                env.regs[op.regA] = env.mem[op.imm];
+                env.regs[op.regA] = env.mem[env.regs[op.regB]];
                 break;
             case OpType::Store:
-                env.mem[op.imm] = env.regs[op.regA];
+                env.mem[env.regs[op.regA]] = env.regs[op.regB];
                 break;
             case OpType::SetReg:
                 env.regs[op.regA] = env.regs[op.regB];
