@@ -86,7 +86,6 @@ int main()
         printf("Interpretted: %fns\n%s\n", interpreter_time, interpreter_mem.c_str());
     }
 
-    if (false)
     {
         auto code = jitlib::compile(program);
 
