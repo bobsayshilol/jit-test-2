@@ -1,13 +1,7 @@
-#ifndef JIT_LIB_H
-#define JIT_LIB_H
+#ifndef JIT_OPS_H
+#define JIT_OPS_H
 
-#include <array>
-#include <cstdint>
-#include <optional>
-#include <span>
-#include <variant>
-#include <vector>
-#include <string>
+#include <jitlib/types.h>
 
 namespace jitlib
 {
@@ -27,23 +21,6 @@ namespace jitlib
         Call,       // sp = label
         Label,
     };
-
-    using Register = uint8_t;
-    using Value = uint8_t;
-    struct Label
-    {
-        template <std::size_t N>
-        Label(const char (&str)[N])
-        {
-            static_assert(N <= 16);
-            std::copy(std::begin(str), std::end(str), data.begin());
-        }
-        std::array<char, 16> data{};
-
-        auto operator<=>(Label const &) const = default;
-    };
-
-    static inline constexpr std::size_t kNumRegisters = 4;
 
     struct Op
     {
@@ -70,51 +47,6 @@ namespace jitlib
         static Op make_Call(Label label) { return {OpType::Call, 0, {.label = label}}; }
         static Op make_Label(Label label) { return {OpType::Label, 0, {.label = label}}; }
     };
-
-    using Memory = std::array<Value, 256>;
-    using Ops = std::array<Op, 256>;
-
-    struct ExecutionEnvironment
-    {
-        Memory mem;
-        Value regs[kNumRegisters];
-        Value pc;
-        struct
-        {
-            bool cmp : 1;
-        } flags;
-    };
-
-    void run(Ops const &ops, ExecutionEnvironment &env);
-
-    class CompiledCode
-    {
-        void *m_code;
-        std::size_t m_size;
-
-        CompiledCode(const CompiledCode &) = delete;
-        CompiledCode &operator=(const CompiledCode &) = delete;
-
-    public:
-        CompiledCode();
-        CompiledCode(void *buffer, std::size_t size); // takes ownership
-        ~CompiledCode();
-
-        CompiledCode(CompiledCode &&);
-        CompiledCode &operator=(CompiledCode &&);
-
-        void run(ExecutionEnvironment &env) const;
-    };
-    CompiledCode compile(Ops const &ops);
 }
-
-template <>
-struct std::hash<jitlib::Label>
-{
-    std::size_t operator()(jitlib::Label const &label) const noexcept
-    {
-        return std::hash<std::string_view>{}(label.data.data());
-    }
-};
 
 #endif

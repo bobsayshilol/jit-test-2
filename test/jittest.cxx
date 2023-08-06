@@ -1,4 +1,4 @@
-#include "jitlib.h"
+#include <jitlib/jitlib.h>
 
 #include <cstdio>
 #include <cstdlib>

@@ -1,7 +1,7 @@
 #ifndef INTERNAL_H
 #define INTERNAL_H
 
-#include "jitlib.h"
+#include <jitlib/jitlib.h>
 #include <stdexcept>
 #include <unordered_map>
 
