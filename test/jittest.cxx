@@ -221,6 +221,19 @@ TEST_CASE(test_add_all)
     }
 }
 
+TEST_CASE(test_add_wrap)
+{
+    jitlib::Ops const ops{
+        jitlib::Op::make_SetImm(1, 255), // r1 = 255
+        jitlib::Op::make_AddImm(1, 1),   // r1 += 1
+        jitlib::Op::make_Return(),
+    };
+
+    jitlib::ExecutionEnvironment env{};
+    RUN_OPS(ops, env);
+    CHECK_EQ(env.regs[1], 0);
+}
+
 TEST_CASE(test_jump)
 {
     jitlib::Ops const ops{

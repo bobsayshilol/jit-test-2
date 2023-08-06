@@ -7,6 +7,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <array>
+#include <stdexcept>
+#include <unordered_map>
 
 // We only use registers that are caller-saved so that we don't have to
 // restore anything on exit.
@@ -24,6 +26,7 @@ namespace jitlib
             void *data;
         };
         using NativeFunction = void (*)(NativeState *);
+        using LabelToOffsetMap = std::unordered_map<Label, std::size_t>;
 
         uint8_t encode_reg(Register reg)
         {
@@ -94,9 +97,39 @@ namespace jitlib
 
         std::size_t handle_load_store(Op const &op, uint8_t *buffer)
         {
-            (void)op;
-            (void)buffer;
-            return 0;
+            auto regA = encode_reg(op.regA);
+            auto regB = encode_reg(op.regB);
+            if (op.type == OpType::Load)
+            {
+                uint8_t const ins[]{
+                    // mov %r10,%r11
+                    0x4d, 0x89, 0xd3,
+                    // add reg,%r11
+                    0x49, 0x01, uint8_t(0xc3 | (regB << 3)),
+                    // movzbl (%r11),reg
+                    0x41, 0x0f, 0xb6, uint8_t(0x03 | (regA << 3))};
+                if (buffer != nullptr)
+                {
+                    std::copy(std::begin(ins), std::end(ins), buffer);
+                }
+                return std::size(ins);
+            }
+            else if (op.type == OpType::Store)
+            {
+                uint8_t const ins[]{
+                    // mov %r10,%r11
+                    0x4d, 0x89, 0xd3,
+                    // add reg,%r11
+                    0x49, 0x01, uint8_t(0xc3 | (regA << 3)),
+                    // mov reg,(%r11)
+                    0x66, 0x41, 0x89, uint8_t(0x03 | (regB << 3))};
+                if (buffer != nullptr)
+                {
+                    std::copy(std::begin(ins), std::end(ins), buffer);
+                }
+                return std::size(ins);
+            }
+            throw std::logic_error("Unknown mem op");
         }
 
         std::size_t handle_set(Op const &op, uint8_t *buffer)
@@ -111,7 +144,17 @@ namespace jitlib
                 }
                 return std::size(ins);
             }
-            return 0;
+            else if (op.type == OpType::SetReg)
+            {
+                auto regB = encode_reg(op.regB);
+                uint8_t const ins[]{0x48, 0x89, uint8_t(0xc0 | (regB << 3) | reg)};
+                if (buffer != nullptr)
+                {
+                    std::copy(std::begin(ins), std::end(ins), buffer);
+                }
+                return std::size(ins);
+            }
+            throw std::logic_error("Unknown set op");
         }
 
         std::size_t handle_arithmetic(Op const &op, uint8_t *buffer)
@@ -119,7 +162,11 @@ namespace jitlib
             auto reg = encode_reg(op.regA);
             if (op.type == OpType::AddImm)
             {
-                uint8_t const ins[]{0x48, 0x83, uint8_t(0xc0 | reg), op.imm};
+                uint8_t const ins[]{
+                    // add reg <imm>
+                    0x48, 0x83, uint8_t(0xc0 | reg), op.imm,
+                    // and 0xff reg
+                    0x48, 0x81, uint8_t(0xe0 | reg), 0xff, 0x00, 0x00, 0x00};
                 if (buffer != nullptr)
                 {
                     std::copy(std::begin(ins), std::end(ins), buffer);
@@ -129,29 +176,83 @@ namespace jitlib
             else if (op.type == OpType::AddReg)
             {
                 auto regB = encode_reg(op.regB);
-                uint8_t const ins[]{0x48, 0x01, uint8_t(0xc0 | (regB << 3) | reg)};
+                uint8_t const ins[]{
+                    // add reg reg
+                    0x48, 0x01, uint8_t(0xc0 | (regB << 3) | reg),
+                    // and 0xff reg
+                    0x48, 0x81, uint8_t(0xe0 | reg), 0xff, 0x00, 0x00, 0x00};
                 if (buffer != nullptr)
                 {
                     std::copy(std::begin(ins), std::end(ins), buffer);
                 }
                 return std::size(ins);
             }
-            return 0;
+            else if (op.type == OpType::Negate)
+            {
+                uint8_t const ins[]{
+                    // neg reg
+                    0x48, 0xf7, uint8_t(0xd8 | reg),
+                    // and 0xff reg
+                    0x48, 0x81, uint8_t(0xe0 | reg), 0xff, 0x00, 0x00, 0x00};
+                if (buffer != nullptr)
+                {
+                    std::copy(std::begin(ins), std::end(ins), buffer);
+                }
+                return std::size(ins);
+            }
+            throw std::logic_error("Unknown arithmetic op");
         }
 
-        std::size_t handle_jump(Op const &op, uint8_t *buffer)
+        std::size_t handle_jump(Op const &op, uint8_t const *buffer_base, uint8_t *buffer, LabelToOffsetMap const *label_to_offset)
         {
-            (void)op;
-            (void)buffer;
-            return 0;
-        }
+            auto patch_addr = [&](auto &ins)
+            {
+                // Patch call address relative to after execution of this instruction
+                auto it = label_to_offset->find(op.label);
+                if (it == label_to_offset->end())
+                {
+                    throw std::logic_error("Unknown label: " + std::string(op.label.data.data()));
+                }
+                int32_t const relative_address = static_cast<int32_t>(it->second - (buffer + std::size(ins) - buffer_base));
+                memcpy(std::end(ins) - 4, &relative_address, 4);
+            };
 
-        std::size_t handle_call(Op const &op, uint8_t *buffer)
-        {
-            // call *%rdx
-            (void)op;
-            (void)buffer;
-            return 0;
+            if (op.type == OpType::Jump)
+            {
+                uint8_t ins[]{0xe9, 0x00, 0x00, 0x00, 0x00};
+                if (buffer != nullptr)
+                {
+                    patch_addr(ins);
+                    std::copy(std::begin(ins), std::end(ins), buffer);
+                }
+                return std::size(ins);
+            }
+            else if (op.type == OpType::JumpIfZero)
+            {
+                auto reg = encode_reg(op.regA);
+                uint8_t ins[]{
+                    // test reg reg
+                    0x48, 0x85, uint8_t(0xc0 | (reg << 3) | reg),
+                    // jz <addr>
+                    0x0f, 0x84, 0x00, 0x00, 0x00, 0x00};
+                if (buffer != nullptr)
+                {
+                    patch_addr(ins);
+                    std::copy(std::begin(ins), std::end(ins), buffer);
+                }
+                return std::size(ins);
+            }
+            else if (op.type == OpType::Call)
+            {
+                uint8_t ins[]{0xe8, 0x00, 0x00, 0x00, 0x00};
+                if (buffer != nullptr)
+                {
+                    patch_addr(ins);
+                    std::copy(std::begin(ins), std::end(ins), buffer);
+                }
+                return std::size(ins);
+            }
+            throw std::logic_error("Unknown jump op");
         }
 
         std::size_t handle_return(Op const &, uint8_t *buffer)
@@ -163,7 +264,7 @@ namespace jitlib
             return 1;
         }
 
-        std::size_t encode(Op const &op, uint8_t *buffer)
+        std::size_t encode(Op const &op, uint8_t const *buffer_base, uint8_t *buffer, LabelToOffsetMap const *label_to_offset)
         {
             switch (op.type)
             {
@@ -185,16 +286,13 @@ namespace jitlib
 
             case OpType::Jump:
             case OpType::JumpIfZero:
-                return handle_jump(op, buffer);
-
             case OpType::Call:
-                return handle_call(op, buffer);
+                return handle_jump(op, buffer_base, buffer, label_to_offset);
 
             case OpType::Return:
                 return handle_return(op, buffer);
 
             case OpType::Label:
-                // TODO
                 return 0;
             }
             return 0;
@@ -234,11 +332,16 @@ namespace jitlib
 
     CompiledCode compile(Ops const &ops)
     {
-        // Pass over the code to get the total size
+        // Pass over the code to get the total size and label locations
+        LabelToOffsetMap label_to_offset;
         std::size_t size = preamble(nullptr);
         for (Op const &op : ops)
         {
-            size += encode(op, nullptr);
+            if (op.type == OpType::Label)
+            {
+                label_to_offset[op.label] = size;
+            }
+            size += encode(op, nullptr, nullptr, nullptr);
         }
 
         // Allocate enough space for it
@@ -252,7 +355,7 @@ namespace jitlib
         std::size_t offset = preamble(code);
         for (Op const &op : ops)
         {
-            offset += encode(op, code + offset);
+            offset += encode(op, code, code + offset, &label_to_offset);
         }
         assert(offset <= size);
 
