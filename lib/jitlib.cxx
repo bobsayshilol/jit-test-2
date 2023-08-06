@@ -1,6 +1,6 @@
 #include "jitlib.h"
+#include "internal.h"
 #include <stack>
-#include <unordered_map>
 
 namespace jitlib
 {
