@@ -19,7 +19,6 @@ namespace jitlib
     struct NativeState
     {
         std::uint64_t regs[kNumRegisters];
-        static_assert(kNumRegisters == 4, "Native code will need changing");
         void *data;
     };
     using NativeFunction = void (*)(NativeState *);

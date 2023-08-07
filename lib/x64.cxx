@@ -8,11 +8,15 @@
 // We only use registers that are caller-saved so that we don't have to
 // restore anything on exit.
 // registers: rax,rcx,rdx,rsi
-// r10 - base data ptr
+// r10 - base data ptr / ExecutionEnvironment
 // r11 - temporary
 
 namespace jitlib
 {
+    static_assert(jitlib::kNumRegisters == 4, "Native code will need changing");
+    static_assert(std::is_same_v<Value, uint8_t>, "Native code will need changing");
+    static_assert(offsetof(ExecutionEnvironment, mem) == 0, "ExecutionEnvironment and data ptr aren't interchangeable");
+
     namespace
     {
         uint8_t encode_reg(Register reg)
@@ -201,6 +205,69 @@ namespace jitlib
             return 1;
         }
 
+        std::size_t handle_callout(Op const &op, uint8_t *buffer)
+        {
+            auto helper_thunk = [](NativeState *state, CallOutFunc func)
+            {
+                auto *env = static_cast<ExecutionEnvironment *>(state->data);
+                std::copy(std::begin(state->regs), std::end(state->regs), std::begin(env->regs));
+                func(*env);
+                std::copy(std::begin(env->regs), std::end(env->regs), std::begin(state->regs));
+            };
+
+            uint8_t const enter[]{
+                // Give us some stack
+                0x48, 0x83, 0xec, 0x38, // sub $0x38,%rsp
+
+                // Store current register values to a |NativeState| on the sack
+                0x48, 0x89, 0x04, 0x24,       // mov %rax,(%rsp)
+                0x48, 0x89, 0x4c, 0x24, 0x08, // mov %rcx,0x8(%rsp)
+                0x48, 0x89, 0x54, 0x24, 0x10, // mov %rdx,0x10(%rsp)
+                0x48, 0x89, 0x74, 0x24, 0x18, // mov %rsi,0x18(%rsp)
+                0x4c, 0x89, 0x54, 0x24, 0x20, // mov %r10,0x20(%rsp)
+
+                // Setup first arg
+                0x48, 0x89, 0xe7, // mov %rsp,%rdi
+
+                // Setup second arg
+                0x48, 0xbe, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 // mov callout,%rsi
+            };
+            uint8_t const call_thunk[]{
+                // Setup call
+                0x48, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov thunk,%rax
+            };
+            uint8_t const leave[]{
+                // Call into the helper thunk
+                // rdi = NativeState
+                // rsi = CallOutFunc
+                // rax = helper_thunk
+                0xff, 0xd0, // call *%rax
+
+                // Read off each register from |NativeState|
+                0x48, 0x8b, 0x04, 0x24,       // mov (%rsp),%rax
+                0x48, 0x8b, 0x4c, 0x24, 0x08, // mov 0x8(%rsp),%rcx
+                0x48, 0x8b, 0x54, 0x24, 0x10, // mov 0x10(%rsp),%rdx
+                0x48, 0x8b, 0x74, 0x24, 0x18, // mov 0x18(%rsp),%rsi
+                0x4c, 0x8b, 0x54, 0x24, 0x20, // mov 0x20(%rsp),%r10
+
+                // Restore stack
+                0x48, 0x83, 0xc4, 0x38, // add $0x38,%rsp
+            };
+            if (buffer != nullptr)
+            {
+                buffer = std::copy(std::begin(enter), std::end(enter), buffer);
+                // Patch callout address
+                memcpy(buffer - 8, &op.func, 8);
+
+                buffer = std::copy(std::begin(call_thunk), std::end(call_thunk), buffer);
+                // Patch thunk address
+                auto *thunk_ptr = static_cast<void (*)(NativeState *, CallOutFunc)>(helper_thunk);
+                memcpy(buffer - 8, &thunk_ptr, 8);
+
+                buffer = std::copy(std::begin(leave), std::end(leave), buffer);
+            }
+            return std::size(enter) + std::size(call_thunk) + std::size(leave);
+        }
     }
 
     namespace native
@@ -285,6 +352,9 @@ namespace jitlib
 
             case OpType::Label:
                 return 0;
+
+            case OpType::CallOut:
+                return handle_callout(op, buffer);
             }
             return 0;
         }

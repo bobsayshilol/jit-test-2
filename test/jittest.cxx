@@ -287,6 +287,41 @@ TEST_CASE(test_call)
     CHECK_EQ(env.regs[1], 8);
 }
 
+TEST_CASE(test_call_out)
+{
+    using UserData = int;
+    auto func = [](jitlib::ExecutionEnvironment &env)
+    {
+        *static_cast<UserData *>(env.userdata) += env.mem[0];
+        env.mem[0] = 3;
+        env.regs[0] += 1;
+        env.regs[1] += 2;
+        env.regs[2] += 3;
+        env.regs[3] += 4;
+    };
+
+    jitlib::Ops const ops{
+        jitlib::Op::make_CallOut(func),
+        jitlib::Op::make_AddImm(2, 5),
+        jitlib::Op::make_Return(),
+    };
+
+    jitlib::ExecutionEnvironment env{};
+    env.mem[0] = 10;
+    env.regs[0] = 1;
+    env.regs[1] = 2;
+    env.regs[2] = 3;
+    env.regs[3] = 4;
+    UserData userdata = 0;
+    env.userdata = &userdata;
+    RUN_OPS(ops, env);
+    CHECK_EQ(userdata, 10);
+    CHECK_EQ(env.regs[0], 2);
+    CHECK_EQ(env.regs[1], 4);
+    CHECK_EQ(env.regs[2], 11);
+    CHECK_EQ(env.regs[3], 8);
+}
+
 int main()
 {
     return tests::run_tests() ? EXIT_SUCCESS : EXIT_FAILURE;

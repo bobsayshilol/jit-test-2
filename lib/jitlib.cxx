@@ -75,6 +75,9 @@ namespace jitlib
                 break;
             case OpType::Label:
                 break;
+            case OpType::CallOut:
+                op.func(env);
+                break;
             }
         }
     }

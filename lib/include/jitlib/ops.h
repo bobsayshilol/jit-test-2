@@ -19,8 +19,11 @@ namespace jitlib
         Jump,       // sp = label
         JumpIfZero, // if (reg == 0) sp = label
         Call,       // sp = label
-        Label,
+        Label,      // label:
+        CallOut,    // call func
     };
+
+    using CallOutFunc = void (*)(ExecutionEnvironment &);
 
     struct Op
     {
@@ -31,6 +34,7 @@ namespace jitlib
             Register regB;
             Value imm;
             Label label;
+            CallOutFunc func;
         };
 
         static Op make_Return() { return {OpType::Return, 0, {}}; }
@@ -46,6 +50,7 @@ namespace jitlib
         static Op make_JumpIfZero(Register reg, Label label) { return {OpType::JumpIfZero, reg, {.label = label}}; }
         static Op make_Call(Label label) { return {OpType::Call, 0, {.label = label}}; }
         static Op make_Label(Label label) { return {OpType::Label, 0, {.label = label}}; }
+        static Op make_CallOut(CallOutFunc func) { return {OpType::CallOut, 0, {.func = func}}; }
     };
 }
 

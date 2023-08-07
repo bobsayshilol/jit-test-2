@@ -19,6 +19,7 @@ namespace jitlib
         {
             bool cmp : 1;
         } flags;
+        void *userdata;
     };
 
     void run(Ops const &ops, ExecutionEnvironment &env);
