@@ -5,9 +5,6 @@
 
 namespace jitlib
 {
-    struct Op;
-    class CompiledCode;
-
     static inline constexpr std::size_t kNumRegisters = 4;
 
     using Memory = std::array<Value, 256>;

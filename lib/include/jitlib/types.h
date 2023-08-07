@@ -9,6 +9,11 @@ namespace jitlib
 {
     using Register = uint8_t;
     using Value = uint8_t;
+
+    class CompiledCode;
+    struct ExecutionEnvironment;
+    struct Op;
+
     struct Label
     {
         template <std::size_t N>
