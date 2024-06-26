@@ -104,16 +104,12 @@ namespace jitlib
             auto reg = encode_reg(op.regA);
             if (op.type == OpType::AddImm)
             {
-#if 1 // TODO
-                (void)reg;
-                uint8_t const ins[]{0x90}; // nop
-#else
                 uint8_t const ins[]{
                     // add reg <imm>
-                    0x48, 0x83, uint8_t(0xc0 | reg), op.imm,
+                    0x81, uint8_t(0xc0 | reg), op.imm, 0x00, 0x00, 0x00,
                     // and 0xff reg
-                    0x48, 0x81, uint8_t(0xe0 | reg), 0xff, 0x00, 0x00, 0x00};
-#endif
+                    0x81, uint8_t(0xe0 | reg), 0xff, 0x00, 0x00, 0x00,
+                };
                 if (buffer != nullptr)
                 {
                     std::copy(std::begin(ins), std::end(ins), buffer);
@@ -122,16 +118,13 @@ namespace jitlib
             }
             else if (op.type == OpType::AddReg)
             {
-#if 1 // TODO
-                uint8_t const ins[]{0x90}; // nop
-#else
                 auto regB = encode_reg(op.regB);
                 uint8_t const ins[]{
                     // add reg reg
-                    0x48, 0x01, uint8_t(0xc0 | (regB << 3) | reg),
+                    0x01, uint8_t(0xc0 | (regB << 3) | reg),
                     // and 0xff reg
-                    0x48, 0x81, uint8_t(0xe0 | reg), 0xff, 0x00, 0x00, 0x00};
-#endif
+                    0x81, uint8_t(0xe0 | reg), 0xff, 0x00, 0x00, 0x00,
+                };
                 if (buffer != nullptr)
                 {
                     std::copy(std::begin(ins), std::end(ins), buffer);
@@ -140,15 +133,12 @@ namespace jitlib
             }
             else if (op.type == OpType::Negate)
             {
-#if 1 // TODO
-                uint8_t const ins[]{0x90}; // nop
-#else
                 uint8_t const ins[]{
                     // neg reg
-                    0x48, 0xf7, uint8_t(0xd8 | reg),
+                    0xf7, uint8_t(0xd8 | reg),
                     // and 0xff reg
-                    0x48, 0x81, uint8_t(0xe0 | reg), 0xff, 0x00, 0x00, 0x00};
-#endif
+                    0x81, uint8_t(0xe0 | reg), 0xff, 0x00, 0x00, 0x00,
+                };
                 if (buffer != nullptr)
                 {
                     std::copy(std::begin(ins), std::end(ins), buffer);
