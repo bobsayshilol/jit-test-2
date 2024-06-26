@@ -220,7 +220,7 @@ namespace jitlib
                 // Give us some stack
                 0x48, 0x83, 0xec, 0x38, // sub $0x38,%rsp
 
-                // Store current register values to a |NativeState| on the sack
+                // Store current register values to a |NativeState| on the stack
                 0x48, 0x89, 0x04, 0x24,       // mov %rax,(%rsp)
                 0x48, 0x89, 0x4c, 0x24, 0x08, // mov %rcx,0x8(%rsp)
                 0x48, 0x89, 0x54, 0x24, 0x10, // mov %rdx,0x10(%rsp)

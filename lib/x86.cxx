@@ -211,8 +211,6 @@ namespace jitlib
 
         std::size_t handle_callout(Op const &op, uint8_t *buffer)
         {
-            return 0; // TODO
-
             auto helper_thunk = [](NativeState *state, CallOutFunc func)
             {
                 auto *env = static_cast<ExecutionEnvironment *>(state->data);
@@ -223,41 +221,46 @@ namespace jitlib
 
             uint8_t const enter[]{
                 // Give us some stack
-                0x48, 0x83, 0xec, 0x38, // sub $0x38,%rsp
+                0x83, 0xec, 0x3a, // sub $0x3a,%esp
 
-                // Store current register values to a |NativeState| on the sack
-                0x48, 0x89, 0x04, 0x24,       // mov %rax,(%rsp)
-                0x48, 0x89, 0x4c, 0x24, 0x08, // mov %rcx,0x8(%rsp)
-                0x48, 0x89, 0x54, 0x24, 0x10, // mov %rdx,0x10(%rsp)
-                0x48, 0x89, 0x74, 0x24, 0x18, // mov %rsi,0x18(%rsp)
-                0x4c, 0x89, 0x54, 0x24, 0x20, // mov %r10,0x20(%rsp)
+                // Store current register values to a |NativeState| on the stack
+                0x89, 0x44, 0x24, 0x18, // mov %eax,0x18(%esp)
+                0x89, 0x4c, 0x24, 0x1c, // mov %ecx,0x1c(%esp)
+                0x89, 0x54, 0x24, 0x20, // mov %edx,0x20(%esp)
+                0x89, 0x5c, 0x24, 0x24, // mov %ebx,0x24(%esp)
+                0x89, 0x7c, 0x24, 0x28, // mov %edi,0x28(%esp)
 
                 // Setup first arg
-                0x48, 0x89, 0xe7, // mov %rsp,%rdi
+                0x8d, 0x4c, 0x24, 0x18, // lea 0x18(%esp),%ecx
 
                 // Setup second arg
-                0x48, 0xbe, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 // mov callout,%rsi
+                0xb8, 0x00, 0x00, 0x00, 0x00, // mov callout,%eax
             };
             uint8_t const call_thunk[]{
+                // Push args for thunk
+                0x50, // push %eax (func)
+                0x51, // push %ecx (state)
+
                 // Setup call
-                0x48, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov thunk,%rax
+                0xb8, 0x00, 0x00, 0x00, 0x00, // mov thunk,%eax
             };
             uint8_t const leave[]{
                 // Call into the helper thunk
-                // rdi = NativeState
-                // rsi = CallOutFunc
-                // rax = helper_thunk
-                0xff, 0xd0, // call *%rax
+                0xff, 0xd0, // call *%eax
+
+                // Pop args
+                0x58, // pop %eax
+                0x58, // pop %eax
 
                 // Read off each register from |NativeState|
-                0x48, 0x8b, 0x04, 0x24,       // mov (%rsp),%rax
-                0x48, 0x8b, 0x4c, 0x24, 0x08, // mov 0x8(%rsp),%rcx
-                0x48, 0x8b, 0x54, 0x24, 0x10, // mov 0x10(%rsp),%rdx
-                0x48, 0x8b, 0x74, 0x24, 0x18, // mov 0x18(%rsp),%rsi
-                0x4c, 0x8b, 0x54, 0x24, 0x20, // mov 0x20(%rsp),%r10
+                0x8b, 0x44, 0x24, 0x18, // mov 0x18(%esp),%eax
+                0x8b, 0x4c, 0x24, 0x1c, // mov 0x1c(%esp),%ecx
+                0x8b, 0x54, 0x24, 0x20, // mov 0x20(%esp),%edx
+                0x8b, 0x5c, 0x24, 0x24, // mov 0x24(%esp),%ebx
+                0x8b, 0x7c, 0x24, 0x28, // mov 0x28(%esp),%edi
 
                 // Restore stack
-                0x48, 0x83, 0xc4, 0x38, // add $0x38,%rsp
+                0x83, 0xc4, 0x3a, // add $0x3a,%esp
             };
             if (buffer != nullptr)
             {
@@ -287,7 +290,7 @@ namespace jitlib
                 0x56, // push %esi
 
                 // Give us some stack
-                0x83, 0xec, 0x20, // sub $0x20,%rsp
+                0x83, 0xec, 0x20, // sub $0x20,%esp
 
                 // Load |NativeState| address from caller's stack (0x20 + 3*push + 4)
                 0x8b, 0x74, 0x24, 0x30, // mov 0x30(%esp),%esi
