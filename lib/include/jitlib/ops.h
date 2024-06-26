@@ -11,13 +11,13 @@ namespace jitlib
         Return,
         Load,       // regA = *regB
         Store,      // *regA = regB
-        SetReg,     // reg = reg
-        SetImm,     // reg = imm
-        AddReg,     // reg += reg
-        AddImm,     // reg += imm
-        Negate,     // reg = -reg
+        SetReg,     // regA = regB
+        SetImm,     // regA = imm
+        AddReg,     // regA += regB
+        AddImm,     // regA += imm
+        Negate,     // regA = -regA
         Jump,       // sp = label
-        JumpIfZero, // if (reg == 0) sp = label
+        JumpIfZero, // if (regA == 0) sp = label
         Call,       // sp = label
         Label,      // label:
         CallOut,    // call func
