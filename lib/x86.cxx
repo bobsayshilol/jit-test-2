@@ -150,8 +150,6 @@ namespace jitlib
 
         std::size_t handle_jump(Op const &op, uint8_t const *buffer_base, uint8_t *buffer, LabelToOffsetMap const *label_to_offset)
         {
-            return 0; // TODO
-
             auto patch_addr = [&](auto &ins)
             {
                 // Patch call address relative to after execution of this instruction
@@ -179,7 +177,7 @@ namespace jitlib
                 auto reg = encode_reg(op.regA);
                 uint8_t ins[]{
                     // test reg reg
-                    0x48, 0x85, uint8_t(0xc0 | (reg << 3) | reg),
+                    0x85, uint8_t(0xc0 | (reg << 3) | reg),
                     // jz <addr>
                     0x0f, 0x84, 0x00, 0x00, 0x00, 0x00};
                 if (buffer != nullptr)
