@@ -16,6 +16,7 @@ namespace jitlib
     static_assert(jitlib::kNumRegisters == 4, "Native code will need changing");
     static_assert(std::is_same_v<Value, uint8_t>, "Native code will need changing");
     static_assert(offsetof(ExecutionEnvironment, mem) == 0, "ExecutionEnvironment and data ptr aren't interchangeable");
+    static_assert(std::is_same_v<NativeRegister, std::uint64_t>, "Registers are 64bit");
 
     namespace
     {

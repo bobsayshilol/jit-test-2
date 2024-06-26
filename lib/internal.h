@@ -16,9 +16,10 @@
 
 namespace jitlib
 {
+    using NativeRegister = std::size_t;
     struct NativeState
     {
-        std::uint64_t regs[kNumRegisters];
+        NativeRegister regs[kNumRegisters];
         void *data;
     };
     using NativeFunction = void (*)(NativeState *);
