@@ -1,3 +1,11 @@
-add_library(jitlib jitlib.cxx compiled.cxx x64.cxx)
+add_library(jitlib jitlib.cxx compiled.cxx)
 target_include_directories(jitlib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_options(jitlib PRIVATE -Werror -Wall -Wextra -pedantic)
+
+if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+    target_sources(jitlib PRIVATE x64.cxx)
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86")
+    target_sources(jitlib PRIVATE x86.cxx)
+else()
+    message(FATAL_ERROR "Unknown target processor: ${CMAKE_SYSTEM_PROCESSOR}")
+endif()
