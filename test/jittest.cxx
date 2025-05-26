@@ -234,6 +234,19 @@ TEST_CASE(test_add_wrap)
     CHECK_EQ(env.regs[1], 0);
 }
 
+TEST_CASE(test_neg)
+{
+    jitlib::Ops const ops{
+        jitlib::Op::make_SetImm(1, 255), // r1 = 255
+        jitlib::Op::make_Negate(1),      // r1 = -r1
+        jitlib::Op::make_Return(),
+    };
+
+    jitlib::ExecutionEnvironment env{};
+    RUN_OPS(ops, env);
+    CHECK_EQ(env.regs[1], 1);
+}
+
 TEST_CASE(test_jump)
 {
     jitlib::Ops const ops{

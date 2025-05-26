@@ -105,7 +105,7 @@ namespace jitlib
             else if (op.type == OpType::Negate)
             {
                 uint32_t const ins[]{
-                    0xe2622000 | (reg << 16) | (reg << 12), // neg reg, reg
+                    0xe2600000 | (reg << 16) | (reg << 12), // neg reg, reg
                     0xe2000000 | (reg << 16) | (reg << 12) | 0xff, // and reg, reg, #255
                 };
                 if (buffer != nullptr)
