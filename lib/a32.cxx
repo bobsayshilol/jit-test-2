@@ -49,7 +49,9 @@ namespace jitlib
             auto reg = encode_reg(op.regA);
             if (op.type == OpType::SetImm)
             {
-                uint32_t const ins[]{0xe3a00000 | (reg << 12) | op.imm};
+                uint32_t const ins[]{
+                    0xe3a00000 | (reg << 12) | op.imm // mov reg, imm
+                };
                 if (buffer != nullptr)
                 {
                     std::copy(std::begin(ins), std::end(ins), buffer);
@@ -59,7 +61,9 @@ namespace jitlib
             else if (op.type == OpType::SetReg)
             {
                 auto regB = encode_reg(op.regB);
-                uint32_t const ins[]{0xe1a00000 | (reg << 12) | regB};
+                uint32_t const ins[]{
+                    0xe1a00000 | (reg << 12) | regB // mov reg, regB
+                };
                 if (buffer != nullptr)
                 {
                     std::copy(std::begin(ins), std::end(ins), buffer);
@@ -71,9 +75,46 @@ namespace jitlib
 
         std::size_t handle_arithmetic(Op const &op, uint32_t *buffer)
         {
-            (void)op;
-            (void)buffer;
-            return 0; // TODO
+            auto reg = encode_reg(op.regA);
+            if (op.type == OpType::AddImm)
+            {
+                uint32_t const ins[]{
+                    0xe3a00000 | (0xe << 12) | op.imm, // mov r14, imm
+                    0xe0800000 | (reg << 16) | (reg << 12) | 0xe, // add reg, reg, r14
+                    0xe2000000 | (reg << 16) | (reg << 12) | 0xff, // and reg, reg, #255
+                };
+                if (buffer != nullptr)
+                {
+                    std::copy(std::begin(ins), std::end(ins), buffer);
+                }
+                return std::size(ins);
+            }
+            else if (op.type == OpType::AddReg)
+            {
+                auto regB = encode_reg(op.regB);
+                uint32_t const ins[]{
+                    0xe0800000 | (reg << 16) | (reg << 12) | regB, // add reg, reg, regB
+                    0xe2000000 | (reg << 16) | (reg << 12) | 0xff, // and reg, reg, #255
+                };
+                if (buffer != nullptr)
+                {
+                    std::copy(std::begin(ins), std::end(ins), buffer);
+                }
+                return std::size(ins);
+            }
+            else if (op.type == OpType::Negate)
+            {
+                uint32_t const ins[]{
+                    0xe2622000 | (reg << 16) | (reg << 12), // neg reg, reg
+                    0xe2000000 | (reg << 16) | (reg << 12) | 0xff, // and reg, reg, #255
+                };
+                if (buffer != nullptr)
+                {
+                    std::copy(std::begin(ins), std::end(ins), buffer);
+                }
+                return std::size(ins);
+            }
+            throw std::logic_error("Unknown arithmetic op");
         }
 
         std::size_t handle_jump(Op const &op, uint32_t const *buffer_base, uint32_t *buffer, LabelToOffsetMap const *label_to_offset)
