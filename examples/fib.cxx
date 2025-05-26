@@ -17,7 +17,7 @@ namespace
     template <typename Func, typename... Args>
     auto profile(Func func, Args &...args)
     {
-        constexpr std::size_t num_times = 100'000;
+        constexpr std::size_t num_times = 1'000;
         auto start = std::chrono::high_resolution_clock::now();
         for (std::size_t i = 0; i < num_times; i++)
         {
