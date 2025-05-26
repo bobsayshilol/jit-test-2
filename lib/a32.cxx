@@ -210,9 +210,67 @@ namespace jitlib
 
         std::size_t handle_callout(Op const &op, uint32_t *buffer)
         {
-            (void)op;
-            (void)buffer;
-            return 0; // TODO
+            auto helper_thunk = [](NativeState *state, CallOutFunc func)
+            {
+                auto *env = static_cast<ExecutionEnvironment *>(state->data);
+                std::copy(std::begin(state->regs), std::end(state->regs), std::begin(env->regs));
+                func(*env);
+                std::copy(std::begin(env->regs), std::end(env->regs), std::begin(state->regs));
+            };
+
+            uint32_t const enter[]{
+                // Give us some stack
+                0xe24dd01c, // sub sp, sp, #28
+
+                // Store current register values to a |NativeState| on the stack
+                0xe58d0000, // str r0, [sp, #0]
+                0xe58d1004, // str r1, [sp, #4]
+                0xe58d2008, // str r2, [sp, #8]
+                0xe58d300c, // str r3, [sp, #12]
+                0xe58dc010, // str r12, [sp, #16]
+
+                // Setup first arg
+                0xe1a0000d, // mov r0, sp
+
+                // Setup second arg
+                0xe59f1000, // ldr r1, [pc, #0]
+                0xea000000, // b call_thunk
+                0x00000000, // <callout>
+            };
+            uint32_t const call_thunk[]{
+                // Setup call
+                0xe59f2000, // ldr r2, [pc, #0]
+                0xea000000, // b leave
+                0x00000000, // <thunk>
+            };
+            uint32_t const leave[]{
+                // Call into the helper thunk
+                0xe12fff32, // blx r2
+
+                // Read off each register from |NativeState|
+                0xe59d0000, // ldr r0, [sp, #0]
+                0xe59d1004, // ldr r1, [sp, #4]
+                0xe59d2008, // ldr r2, [sp, #8]
+                0xe59d300c, // ldr r3, [sp, #12]
+                0xe59dc010, // ldr r12, [sp, #16]
+
+                // Restore stack
+                0xe28dd01c, // add sp, sp, #28
+            };
+            if (buffer != nullptr)
+            {
+                buffer = std::copy(std::begin(enter), std::end(enter), buffer);
+                // Patch callout address
+                memcpy(buffer - 1, &op.func, 4);
+
+                buffer = std::copy(std::begin(call_thunk), std::end(call_thunk), buffer);
+                // Patch thunk address
+                auto *thunk_ptr = static_cast<void (*)(NativeState *, CallOutFunc)>(helper_thunk);
+                memcpy(buffer - 1, &thunk_ptr, 4);
+
+                buffer = std::copy(std::begin(leave), std::end(leave), buffer);
+            }
+            return std::size(enter) + std::size(call_thunk) + std::size(leave);
         }
 
         std::size_t preamble32(uint32_t *buffer)

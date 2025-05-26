@@ -325,10 +325,12 @@ TEST_CASE(test_call_out)
     env.regs[1] = 2;
     env.regs[2] = 3;
     env.regs[3] = 4;
-    UserData userdata = 0;
+    UserData userdata = 7;
     env.userdata = &userdata;
     RUN_OPS(ops, env);
-    CHECK_EQ(userdata, 10);
+    CHECK_EQ(userdata, 17);
+    CHECK_EQ(env.mem[0], 3);
+    CHECK_EQ(env.mem[1], 0);
     CHECK_EQ(env.regs[0], 2);
     CHECK_EQ(env.regs[1], 4);
     CHECK_EQ(env.regs[2], 11);
