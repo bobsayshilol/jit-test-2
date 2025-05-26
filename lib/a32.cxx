@@ -119,16 +119,66 @@ namespace jitlib
 
         std::size_t handle_jump(Op const &op, uint32_t const *buffer_base, uint32_t *buffer, LabelToOffsetMap const *label_to_offset)
         {
-            (void)op;
-            (void)buffer_base;
-            (void)buffer;
-            (void)label_to_offset;
-            return 0; // TODO
+            auto encode_relative_address = [&](auto &ins)
+            {
+                // Patch call address relative to this instruction.
+                auto it = label_to_offset->find(op.label);
+                if (it == label_to_offset->end())
+                {
+                    throw std::logic_error("Unknown label: " + std::string(op.label.data.data()));
+                }
+                // Offset is the number of instructions, not bytes.
+                std::size_t relative_address = it->second / 4 - (buffer + std::size(ins) - buffer_base);
+                relative_address -= 1;
+                std::end(ins)[-1] |= (relative_address & 0x00ffffff);
+            };
+
+            if (op.type == OpType::Jump)
+            {
+                uint32_t ins[]{
+                    0xea000000, // b <offset>
+                };
+                if (buffer != nullptr)
+                {
+                    encode_relative_address(ins);
+                    std::copy(std::begin(ins), std::end(ins), buffer);
+                }
+                return std::size(ins);
+            }
+            else if (op.type == OpType::JumpIfZero)
+            {
+                auto reg = encode_reg(op.regA);
+                uint32_t ins[]{
+                    0xe3500000 | (reg << 16), // cmp reg, #0
+                    0x0a000000, // beq <offset>
+                };
+                if (buffer != nullptr)
+                {
+                    encode_relative_address(ins);
+                    std::copy(std::begin(ins), std::end(ins), buffer);
+                }
+                return std::size(ins);
+            }
+            else if (op.type == OpType::Call)
+            {
+                uint32_t ins[]{
+                    // Save return address, x86 call style.
+                    0xe28fe004, // add r14, pc, #4
+                    0xe52de004, // push {r14}
+                    0xeb000000, // bl <offset>
+                };
+                if (buffer != nullptr)
+                {
+                    encode_relative_address(ins);
+                    std::copy(std::begin(ins), std::end(ins), buffer);
+                }
+                return std::size(ins);
+            }
+            throw std::logic_error("Unknown jump op");
         }
 
         std::size_t handle_return(Op const &, uint32_t *buffer)
         {
-            (void)buffer;
             if (buffer != nullptr)
             {
                 *buffer = 0xe49df004; // pop {pc}
