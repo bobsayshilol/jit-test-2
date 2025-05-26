@@ -18,8 +18,10 @@ A crappy lib for jitting a language that doesn't exist.
 
 ✅ The ability to call out from jitted code
 
-❌ ARM backend support
+❌ 64bit ARM backend support
 
-✅ x64 System-V backend support
+✅ 32bit ARM backend support
 
 ❌ Windows support
+
+✅ x64 and x86 System-V backend support

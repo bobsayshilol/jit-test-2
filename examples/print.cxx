@@ -1,5 +1,4 @@
 #include <jitlib/jitlib.h>
-#include <format>
 #include <iostream>
 
 namespace
@@ -12,7 +11,11 @@ namespace
     void print_regs(jitlib::ExecutionEnvironment &env)
     {
         auto *userdata = static_cast<UserData *>(env.userdata);
-        std::cout << std::format("Regs ({}): [{}, {}, {}, {}]", userdata->prefix, env.regs[0], env.regs[1], env.regs[2], env.regs[3]) << std::endl;
+        std::cout << "Regs (" << userdata->prefix << "): ["
+            << static_cast<int>(env.regs[0]) << ", "
+            << static_cast<int>(env.regs[1]) << ", "
+            << static_cast<int>(env.regs[2]) << ", "
+            << static_cast<int>(env.regs[3]) << "]\n";
     }
 }
 
