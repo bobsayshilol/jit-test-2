@@ -304,7 +304,7 @@ namespace jitlib
                 0x48, 0x83, 0xc4, 0x38, // add $0x38,%rsp
                 0xc3,                   // ret
 
-                // Saftey guard
+                // Safety guard
                 0xcc, // int3
                 0xcc, // int3
                 0xcc, // int3

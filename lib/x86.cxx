@@ -321,7 +321,7 @@ namespace jitlib
                 0x5b,             // pop %ebx
                 0xc3,             // ret
 
-                // Saftey guard
+                // Safety guard
                 0xcc, // int3
                 0xcc, // int3
                 0xcc, // int3
