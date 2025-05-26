@@ -39,9 +39,31 @@ namespace jitlib
 
         std::size_t handle_load_store(Op const &op, uint32_t *buffer)
         {
-            (void)op;
-            (void)buffer;
-            return 0; // TODO
+            auto regA = encode_reg(op.regA);
+            auto regB = encode_reg(op.regB);
+            if (op.type == OpType::Load)
+            {
+                uint32_t const ins[]{
+                    0xe7dc0000 | (regA << 12) | regB, // ldrb regA, [r12, regB]
+                };
+                if (buffer != nullptr)
+                {
+                    std::copy(std::begin(ins), std::end(ins), buffer);
+                }
+                return std::size(ins);
+            }
+            else if (op.type == OpType::Store)
+            {
+                uint32_t const ins[]{
+                    0xe7cc0000 | (regB << 12) | regA, // strb regB, [r12, regA]
+                };
+                if (buffer != nullptr)
+                {
+                    std::copy(std::begin(ins), std::end(ins), buffer);
+                }
+                return std::size(ins);
+            }
+            throw std::logic_error("Unknown mem op");
         }
 
         std::size_t handle_set(Op const &op, uint32_t *buffer)
