@@ -19,8 +19,18 @@ namespace jitlib
 
         void finalise(uint8_t *buffer, std::size_t used, std::size_t length)
         {
-            // INT3 out any leftover space
-            memset(buffer + used, 0xcc, length - used);
+            // Trap on any leftover space
+            uint8_t *unused_start = buffer + used;
+            std::size_t unused_length = length - used;
+#ifdef __arm__
+            const uint32_t udf = 0xe7f000f0;
+            std::fill_n(reinterpret_cast<uint32_t*>(unused_start), unused_length / 4, udf);
+#elif defined(__x86_64__) || defined(__i386__)
+            const uint8_t int3 = 0xcc;
+            memset(unused_start, int3, unused_length);
+#else
+#error "Unknown platform"
+#endif
 
             // Make it executable
             int err = mprotect(buffer, length, PROT_READ | PROT_EXEC);
